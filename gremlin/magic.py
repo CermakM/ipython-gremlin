@@ -28,6 +28,7 @@ class GremlinMagic(Magics):
     """)
 
     bindings = set()
+    blacklist = set()
 
     password = Unicode(config.defaults.password, config=True, help="""
         Password used in SASL authentication
@@ -84,12 +85,17 @@ class GremlinMagic(Magics):
         if self.use_local_namespace:
 
             # private variables have to be registered explicitly in this case
-            bindings = utils.sanitize_namespace(user_ns, self.bindings)
+            bindings = utils.sanitize_namespace(
+                user_ns,
+                blacklist=self.blacklist,
+                bindings=self.bindings
+            )
 
         else:
 
             bindings = {
-                k: v for k, v in user_ns.items() if k in self.bindings
+                k: v for k, v in user_ns.items()
+                if k in self.bindings and k not in self.blacklist
             }
 
         descriptors = utils.parse(connection_str)
@@ -138,6 +144,11 @@ class GremlinMagic(Magics):
         """
         self.bindings.add(binding)
 
+    @line_magic('gremlin.blacklist_binding')
+    def register_blacklist_binding(self, key: str):
+        """Register binding to blacklist."""
+        self.blacklist.add(key)
+
     @line_magic('gremlin.register_namespace')
     def register_namespace(self, params=''):
         """Register the whole namespace.
@@ -152,7 +163,10 @@ class GremlinMagic(Magics):
 
         namespace = self.shell.user_ns
         for var, value in utils.sanitize_namespace(
-                namespace, self.bindings, args.allow_private):
+                namespace,
+                blacklist=self.blacklist,
+                bindings=self.bindings,
+                allow_private=args.allow_private):
 
             self.bindings.add(var)
 
@@ -160,6 +174,11 @@ class GremlinMagic(Magics):
     def remove_binding(self, key: str):
         """Remove registered binding."""
         self.bindings.remove(key)
+
+    @line_magic('gremlin.blacklist_binding')
+    def remove_binding_from_blacklist(self, key: str):
+        """Remove binding from blacklist."""
+        self.blacklist.add(key)
 
     @line_magic('gremlin.get_bindings')
     def get_bindings(self, line):
@@ -170,7 +189,8 @@ class GremlinMagic(Magics):
 
             bindings = utils.sanitize_namespace(
                 self.shell.user_ns,
-                bindings=bindings
+                bindings=bindings,
+                blacklist=self.blacklist
             )
 
         return bindings

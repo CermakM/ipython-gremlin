@@ -20,9 +20,11 @@ def parse(connection_str):
     return descriptors
 
 
-def sanitize_namespace(user_ns, bindings=None, allow_private=False):
+def sanitize_namespace(user_ns, bindings=None, blacklist=None, allow_private=False):
     """Filter namespace."""
     bindings = bindings or dict()
+    blacklist = blacklist or dict()
+
     namespace = dict()
 
     for k, v in user_ns.items():
@@ -33,6 +35,9 @@ def sanitize_namespace(user_ns, bindings=None, allow_private=False):
             if config.defaults.warnings:
                 print("[WARNING] Serialization of object `{obj}` failed. Skipping.".format(obj=k),
                       exc, file=sys.stderr)
+            continue
+
+        if k in blacklist:
             continue
 
         # pop ipython vars (if they are not overridden by user)
